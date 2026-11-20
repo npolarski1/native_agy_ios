@@ -1,0 +1,50 @@
+{
+  "antigravity-monitor": {
+    "enabled": true,
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "python3 /path/to/bridge/hooks/antigravity_hook.py --event PreInvocation",
+        "timeout": 30
+      }
+    ],
+    "PostInvocation": [
+      {
+        "type": "command",
+        "command": "python3 /path/to/bridge/hooks/antigravity_hook.py --event PostInvocation",
+        "timeout": 30
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "run_command|write_file|edit_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /path/to/bridge/hooks/antigravity_hook.py --event PreToolUse --timeout 55",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /path/to/bridge/hooks/antigravity_hook.py --event PostToolUse",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "python3 /path/to/bridge/hooks/antigravity_hook.py --event Stop",
+        "timeout": 30
+      }
+    ]
+  }
+}

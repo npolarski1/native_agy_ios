@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bridge-tests:
+    name: Bridge Tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify Python syntax across bridge, hooks, and tests
+        run: python -m compileall -q bridge/antigravity_bridge bridge/hooks bridge/tests
+
+      - name: Verify bridge packaging metadata and module import
+        env:
+          PYTHONPATH: bridge
+        run: python -c "import tomllib, pathlib, antigravity_bridge; data = tomllib.loads(pathlib.Path('bridge/pyproject.toml').read_text(encoding='utf-8')); print('Package:', data['project']['name'], 'from', antigravity_bridge.__file__)"
+
+      - name: Verify bridge CLI entrypoint
+        env:
+          PYTHONPATH: bridge
+        run: python -m antigravity_bridge --help
+
+      - name: Run bridge unit and end-to-end tests
+        env:
+          PYTHONPATH: bridge
+        run: python -m unittest discover -s bridge/tests -v
+
+  ios-core-tests:
+    name: iOS Core Package Tests (SwiftPM)
+    runs-on: macos-15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Inspect Swift and Xcode toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Run AntigravityCore unit tests
+        run: swift test --package-path ios/Packages/AntigravityCore
+
+  ios-app-build:
+    name: iOS App & Widget Extension Build (Xcode)
+    runs-on: macos-15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Inspect Xcode and available iOS Simulator runtimes
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes ios || true
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project from ios/project.yml
+        working-directory: ios
+        run: |
+          xcodegen generate
+          xcodebuild -list -project AntigravityMonitor.xcodeproj
+
+      - name: Build AntigravityMonitor (App + Widget Extension + Core)
+        working-directory: ios
+        run: |
+          xcodebuild \
+            -project AntigravityMonitor.xcodeproj \
+            -scheme AntigravityMonitor \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "antigravity-bridge"
+version = "1.0.0"
+description = "Zero-dependency companion bridge server and lifecycle hooks for monitoring Google Antigravity 2.0 from iOS."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+bonjour = ["zeroconf>=0.132.0"]
+
+[project.scripts]
+antigravity-bridge = "antigravity_bridge.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["antigravity_bridge*"]
