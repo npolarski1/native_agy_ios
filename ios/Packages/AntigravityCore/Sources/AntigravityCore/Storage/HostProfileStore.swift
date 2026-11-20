@@ -91,13 +91,22 @@ public final class HostProfileStore: @unchecked Sendable {
 
         let resultProfile: HostProfile
         if let existingIndex = profiles.firstIndex(where: { $0.normalizedBaseURLKey == normalizedKey }) {
-            var updated = profiles[existingIndex]
-            updated.name = resolvedName
-            updated.baseURL = normalizedURL
+            let existing = profiles[existingIndex]
+            let updated = HostProfile(
+                id: existing.id,
+                name: resolvedName,
+                baseURL: normalizedURL,
+                createdAt: Self.normalizedTimestamp(existing.createdAt),
+                lastConnectedAt: existing.lastConnectedAt.map(Self.normalizedTimestamp)
+            )
             profiles[existingIndex] = updated
             resultProfile = updated
         } else {
-            let created = HostProfile(name: resolvedName, baseURL: normalizedURL)
+            let created = HostProfile(
+                name: resolvedName,
+                baseURL: normalizedURL,
+                createdAt: Self.normalizedTimestamp(Date())
+            )
             profiles.append(created)
             resultProfile = created
         }
@@ -130,17 +139,25 @@ public final class HostProfileStore: @unchecked Sendable {
     public func saveProfile(_ profile: HostProfile, token: String, makeActive: Bool = false) throws {
         try tokenStore.saveToken(token, for: profile.id)
 
+        let normalized = HostProfile(
+            id: profile.id,
+            name: profile.name,
+            baseURL: profile.baseURL,
+            createdAt: Self.normalizedTimestamp(profile.createdAt),
+            lastConnectedAt: profile.lastConnectedAt.map(Self.normalizedTimestamp)
+        )
+
         lock.lock()
         defer { lock.unlock() }
         var profiles = lockedLoadProfiles()
-        if let idx = profiles.firstIndex(where: { $0.id == profile.id }) {
-            profiles[idx] = profile
+        if let idx = profiles.firstIndex(where: { $0.id == normalized.id }) {
+            profiles[idx] = normalized
         } else {
-            profiles.append(profile)
+            profiles.append(normalized)
         }
         lockedSaveProfiles(profiles)
         if makeActive || lockedActiveHostID() == nil {
-            lockedSetActiveHostID(profile.id)
+            lockedSetActiveHostID(normalized.id)
         }
     }
 
@@ -149,7 +166,7 @@ public final class HostProfileStore: @unchecked Sendable {
         defer { lock.unlock() }
         var profiles = lockedLoadProfiles()
         guard let index = profiles.firstIndex(where: { $0.id == hostId }) else { return }
-        profiles[index].lastConnectedAt = date
+        profiles[index].lastConnectedAt = Self.normalizedTimestamp(date)
         lockedSaveProfiles(profiles)
     }
 
@@ -240,5 +257,9 @@ public final class HostProfileStore: @unchecked Sendable {
         } else {
             userDefaults.removeObject(forKey: Self.activeHostIDStorageKey)
         }
+    }
+
+    private static func normalizedTimestamp(_ date: Date) -> Date {
+        Date(timeIntervalSince1970: date.timeIntervalSince1970.rounded(.down))
     }
 }

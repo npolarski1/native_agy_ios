@@ -105,11 +105,11 @@ final class HostProfileStoreTests: XCTestCase {
         XCTAssertEqual(profile.name, "Tailscale Mac")
         XCTAssertNil(profile.lastConnectedAt)
 
-        let timestamp = Date(timeIntervalSince1970: 1_795_000_000)
-        store.updateLastConnected(for: profile.id, at: timestamp)
+        let fractionalTimestamp = Date(timeIntervalSince1970: 1_795_000_000.789)
+        store.updateLastConnected(for: profile.id, at: fractionalTimestamp)
 
         let reloaded = try XCTUnwrap(store.activeProfile())
-        XCTAssertEqual(reloaded.lastConnectedAt?.timeIntervalSince1970 ?? 0, timestamp.timeIntervalSince1970, accuracy: 1.0)
+        XCTAssertEqual(reloaded.lastConnectedAt, Date(timeIntervalSince1970: 1_795_000_000))
     }
 
     func testWidgetStatusSnapshotRoundtrip() throws {
